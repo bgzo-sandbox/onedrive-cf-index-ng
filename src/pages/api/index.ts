@@ -135,7 +135,13 @@ export function getAuthTokenPath(path: string) {
     }
     // In private mode, search the path hierarchy for a .password file
     // This allows protecting entire directory trees with a single .password file
-    return findPasswordInHierarchy(path)
+    const passwordPath = findPasswordInHierarchy(path)
+    if (passwordPath) {
+      return passwordPath
+    }
+    // If no .password file found in hierarchy, require auth at the path itself
+    // This will result in a 404 if no .password file exists
+    return `${path}/.password`
   }
 
   // Public mode: only explicitly protected routes require auth
