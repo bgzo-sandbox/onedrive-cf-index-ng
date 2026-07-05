@@ -37,6 +37,15 @@ module.exports = {
   footer:
     'Powered by <a href="https://github.com/lyc8503/onedrive-cf-index-ng" target="_blank" rel="noopener noreferrer">onedrive-cf-index-ng</a>. Made with ❤ by lyc8503.',
 
+  // [OPTIONAL] Access mode for the file listing:
+  // - 'public': All files are publicly visible by default. Only paths listed in `protectedRoutes` require a password.
+  // - 'private': Only paths listed in `publicFolders` are publicly visible. Everything else requires a password via .password files.
+  accessMode: process.env.ACCESS_MODE || 'public',
+
+  // [OPTIONAL] (Only used when accessMode is 'private') An array of folder paths that are publicly visible without password.
+  // Paths not in this list will require .password authentication.
+  publicFolders: (process.env.PUBLIC_FOLDERS || '/Public,/Shared').split(',').map(s => s.trim()),
+
   // [OPTIONAL] This is where you specify the folders that are password protected. It is an array of paths pointing to all
   // the directories in which you have .password set. Check the documentation for details.
   protectedRoutes: ['/Private', '/Demo/😎Another Private Folder Password 123'],

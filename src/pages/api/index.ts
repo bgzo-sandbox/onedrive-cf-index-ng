@@ -78,25 +78,68 @@ export async function getAccessToken(): Promise<string> {
 }
 
 /**
+ * Check if a route is explicitly protected via protectedRoutes config
+ * @param path Path cleaned in advance
+ * @returns Path to .password file if route is protected, empty string otherwise
+ */
+function findProtectedRoute(path: string): string {
+  // Ensure trailing slashes to compare paths component by component. Same for protectedRoutes.
+  // Since OneDrive ignores case, lower case before comparing. Same for protectedRoutes.
+  const normalizedPath = path.toLowerCase() + '/'
+  const protectedRoutes = siteConfig.protectedRoutes as string[]
+  for (let r of protectedRoutes) {
+    if (typeof r !== 'string') continue
+    r = r.toLowerCase().replace(/\/$/, '') + '/'
+    if (normalizedPath.startsWith(r)) {
+      return `${r}.password`
+    }
+  }
+  return ''
+}
+
+/**
+ * Search the path hierarchy from deepest to shallowest for a .password file
+ * @param path Path cleaned in advance
+ * @returns Path to .password file if found, empty string otherwise
+ */
+function findPasswordInHierarchy(path: string): string {
+  const parts = path.split('/').filter(Boolean)
+  // Search from the current path up to the root
+  for (let i = parts.length; i >= 0; i--) {
+    const checkPath = '/' + parts.slice(0, i).join('/')
+    const result = findProtectedRoute(checkPath)
+    if (result) return result
+  }
+  return ''
+}
+
+/**
  * Match protected routes in site config to get path to required auth token
  * @param path Path cleaned in advance
  * @returns Path to required auth token. If not required, return empty string.
  */
 export function getAuthTokenPath(path: string) {
-  // Ensure trailing slashes to compare paths component by component. Same for protectedRoutes.
-  // Since OneDrive ignores case, lower case before comparing. Same for protectedRoutes.
-  path = path.toLowerCase() + '/'
-  const protectedRoutes = siteConfig.protectedRoutes as string[]
-  let authTokenPath = ''
-  for (let r of protectedRoutes) {
-    if (typeof r !== 'string') continue
-    r = r.toLowerCase().replace(/\/$/, '') + '/'
-    if (path.startsWith(r)) {
-      authTokenPath = `${r}.password`
-      break
+  const accessMode = (siteConfig.accessMode as string) || 'public'
+
+  // In private mode, check if the path is within any public folder first
+  if (accessMode === 'private') {
+    const publicFolders = (siteConfig.publicFolders as string[]) || []
+    const normalizedPath = path.toLowerCase()
+    const isPublic = publicFolders.some(folder => {
+      const normalizedFolder = folder.toLowerCase().replace(/\/$/, '')
+      return normalizedPath === normalizedFolder || normalizedPath.startsWith(normalizedFolder + '/')
+    })
+    // If the path is public, no auth needed
+    if (isPublic) {
+      return ''
     }
+    // In private mode, search the path hierarchy for a .password file
+    // This allows protecting entire directory trees with a single .password file
+    return findPasswordInHierarchy(path)
   }
-  return authTokenPath
+
+  // Public mode: only explicitly protected routes require auth
+  return findProtectedRoute(path)
 }
 
 /**
