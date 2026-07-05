@@ -83,15 +83,14 @@ export async function getAccessToken(): Promise<string> {
  * @returns Path to .password file if route is protected, empty string otherwise
  */
 function findProtectedRoute(path: string): string {
-  // Ensure trailing slashes to compare paths component by component. Same for protectedRoutes.
-  // Since OneDrive ignores case, lower case before comparing. Same for protectedRoutes.
-  const normalizedPath = path.toLowerCase() + '/'
+  const normalizedPath = path.toLowerCase()
   const protectedRoutes = siteConfig.protectedRoutes as string[]
-  for (let r of protectedRoutes) {
+  for (const r of protectedRoutes) {
     if (typeof r !== 'string') continue
-    r = r.toLowerCase().replace(/\/$/, '') + '/'
-    if (normalizedPath.startsWith(r)) {
-      return `${r}.password`
+    const normalizedRoute = r.toLowerCase().replace(/\/$/, '')
+    // Exact match or subpath match (must be at path boundary)
+    if (normalizedPath === normalizedRoute || normalizedPath.startsWith(normalizedRoute + '/')) {
+      return `${normalizedRoute}/.password`
     }
   }
   return ''
@@ -139,9 +138,8 @@ export function getAuthTokenPath(path: string) {
     if (passwordPath) {
       return passwordPath
     }
-    // If no .password file found in hierarchy, require auth at the path itself
-    // This will result in a 404 if no .password file exists
-    return `${path}/.password`
+    // No .password file found - the path is not protected
+    return ''
   }
 
   // Public mode: only explicitly protected routes require auth
